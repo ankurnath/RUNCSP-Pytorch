@@ -4,8 +4,15 @@
 
 # Run training for various graph distributions
 
-python train_maxcut.py --distribution rnd_graph_800vertices_unweighted
-python train_maxcut.py --distribution rnd_graph_800vertices_weighted
+python train_maxcut.py --distribution BA_800vertices_unweighted
+python train_maxcut.py --distribution BA_800vertices_weighted
+python train_maxcut.py --distribution WattsStrogatz_800vertices_unweighted
+python train_maxcut.py --distribution WattsStrogatz_800vertices_weighted
+python train_maxcut.py --distribution HomleKim_800vertices_unweighted
+python train_maxcut.py --distribution HomleKim_800vertices_weighted
+
+# python train_maxcut.py --distribution rnd_graph_800vertices_unweighted
+# python train_maxcut.py --distribution rnd_graph_800vertices_weighted
 # python train_maxcut.py --distribution ER_200
 # python train_maxcut.py --distribution BA_200
 # python train_maxcut.py --distribution dense_MC_100_200vertices_unweighted
