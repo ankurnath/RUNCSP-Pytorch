@@ -160,9 +160,9 @@ class CSP_Data:
         return data
 
     @staticmethod
-    def load_graph_maxcut(path):
+    def load_graph_weighted_maxcut(nx_graph):
         # load graph from disc and create weighted maxcut instance
-        nx_graph = load_dimacs_graph(path)
+        # nx_graph = load_dimacs_graph(path)
         const_lang = Constraint_Language.get_maxcut_language()
 
         num_vert = nx_graph.order()
@@ -175,5 +175,24 @@ class CSP_Data:
 
         edges = {rel: torch.tensor(e).transpose(0, 1) for rel, e in edges.items() if len(e) > 0}
 
-        data = CSP_Data(num_vars=num_vert, const_lang=const_lang, edges=edges, path=path)
+        data = CSP_Data(num_vars=num_vert, const_lang=const_lang, edges=edges, path=None)
+        return data
+    
+    @staticmethod
+    def load_graph_unweigted_maxcut(nx_graph):
+        # load graph from disc and create weighted maxcut instance
+        # nx_graph = load_dimacs_graph(path)
+        const_lang = Constraint_Language.get_coloring_language(2)
+
+        num_vert = nx_graph.order()
+        idx_map = {v: i for i, v in enumerate(nx_graph.nodes())}
+
+        edges = {'EQ': [], 'NEQ': []}
+        for u, v, w in nx_graph.edges(data='weight'):
+            rel = 'NEQ' if w > 0 else 'EQ'
+            edges[rel].append([idx_map[u], idx_map[v]])
+
+        edges = {rel: torch.tensor(e).transpose(0, 1) for rel, e in edges.items() if len(e) > 0}
+
+        data = CSP_Data(num_vars=num_vert, const_lang=const_lang, edges=edges, path=None)
         return data

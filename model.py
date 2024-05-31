@@ -74,11 +74,11 @@ class RUNCSP(Module):
 
     def save(self):
         os.makedirs(self.model_dir, exist_ok=True)
-        torch.save(self, os.path.join(self.model_dir, 'model.pkl'))
+        torch.save(self, os.path.join(self.model_dir, 'best.pkl'))
 
     @staticmethod
     def load(model_dir):
-        return torch.load(os.path.join(model_dir, 'model.pkl'))
+        return torch.load(os.path.join(model_dir, 'best.pkl'))
 
     def forward(self, csp_data, steps):
         # init recurrent states
