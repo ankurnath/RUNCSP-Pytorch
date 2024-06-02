@@ -1,5 +1,6 @@
-import torch
 import numpy as np
+import torch
+
 from torch.utils.data import DataLoader
 
 from model import RUNCSP
@@ -23,29 +24,69 @@ import pandas as pd
 def evaluate(model, loader, device, args):
 
     assignments=[]
+    opt_steps=[]
 
     with torch.inference_mode():
         for data in loader:
             start = timer()
             path = data.path
+            # print(args.num_boost)
             data = CSP_Data.collate([data for _ in range(args.num_boost)])
             data.to(device)
 
-            assignment = model(data, args.network_steps)
-            num_unsat = data.count_unsat(assignment)
-            min_unsat = num_unsat.min().cpu().numpy()
-            solved = min_unsat == 0
-            assignments.append(data.hard_assign(assignment.squeeze()).cpu().numpy())
+            all_assignments = model(data, args.network_steps,eval=True)
+            # assignment = model(data, args.network_steps,eval=True)
+            # print(len(all_assignments))
+            assert len(all_assignments)==args.network_steps
+
+            # assignment= assignment.reshape(args.num_boost,-1,args.network_steps)
+            # print(assignment.shape)
+
+            best_unsat=1000000
+            opt_step=-1
+
+            for i in range(args.network_steps):
+                assignment=all_assignments[i]
+                assignment = torch.cat([1.0-assignment, assignment], dim=2)
+
+                num_unsat = data.count_unsat(assignment)
+                min_unsat = num_unsat.min().cpu().numpy()
+
+                if min_unsat<best_unsat:
+                    best_unsat=min_unsat
+                    # min_unsat=best_unsat
+                    opt_step=i
+                    best_assignment=assignment
+
+
+            assignments.append(data.hard_assign(best_assignment.squeeze()).cpu().numpy())
+                # assignment=data.hard_assign(all_assignments[i].squeeze()).cpu().numpy()
+
+            # print(opt_step)
+            opt_steps.append(opt_step)
+
+            # assignment=all_assignments[-1]
+            # # print(assignment.shape)
+            # # if assignment.out_dim==1:
+            # assignment = torch.cat([1.0-assignment, assignment], dim=2)
+
+            # num_unsat = data.count_unsat(assignment)
+            # min_unsat = num_unsat.min().cpu().numpy()
+            # solved = min_unsat == 0
+            # assignments.append(data.hard_assign(assignment.squeeze()).cpu().numpy())
+            # assignment.append(all_assignments)
 
 
 
-            end = timer()
-            time = end - start
+
+            # end = timer()
+            # time = end - start
 
             # print(f'{path} -- Num Unsat: {min_unsat}')
             # print(f'{"Solved" if solved else "Unsolved"} {time:.2f}s')
 
-    return assignments
+    # return all_assignments
+    return assignments,opt_steps
 
 
 if __name__ == "__main__":
@@ -57,7 +98,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--num_boost", type=int, default=50, help="Number of parallel runs")
     # parser.add_argument("--network_steps", type=int, default=10000000, help="Number of network steps")
-    parser.add_argument("--network_steps", type=int, default=250, help="Number of network steps")
+    parser.add_argument("--network_steps", type=int,required=True, default=250, help="Number of network steps")
     args = parser.parse_args()
 
     torch.manual_seed(args.seed)
@@ -66,7 +107,7 @@ if __name__ == "__main__":
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-    model = RUNCSP.load(f'pretrained agents/{args.distribution}')
+    model = RUNCSP.load(f'RUNCSP/pretrained agents/{args.distribution}')
     model.to(device)
     model.eval()
 
@@ -86,7 +127,7 @@ if __name__ == "__main__":
         collate_fn=CSP_Data.collate
     )
 
-    assignments=evaluate(model, loader, device, args)
+    assignments,opt_steps=evaluate(model, loader, device, args)
     # print(assignments[0])
 
     df= defaultdict(list)
@@ -103,8 +144,9 @@ if __name__ == "__main__":
         df['cut'].append(best_cut)
         # print('Best cut',best_cut)
 
-    save_folder=f'pretrained agents/{args.distribution}/data'
-
+    save_folder=f'RUNCSP/pretrained agents/{args.distribution}/data'
+    df['Opt Step']= opt_steps
+    df['Steps'] = [args.network_steps]*len(opt_steps)
     mk_dir(save_folder)
     df=pd.DataFrame(df)
     file_name=os.path.join(save_folder,'results')
